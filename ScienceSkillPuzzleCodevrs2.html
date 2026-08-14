@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Science Skills Assembly Activity</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --accent: #2563eb;
+      --border: #cbd5e1;
+      --highlight: #dbeafe;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg);
+      color: #1e293b;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .instructions {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    .instructions h3 {
+      margin: 0 0 6px 0;
+      font-size: 1.15rem;
+    }
+
+    .instructions p {
+      margin: 0;
+      font-size: 0.875rem;
+      color: #64748b;
+    }
+
+    .app-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+      width: 100%;
+      max-width: 960px;
+    }
+
+    /* Assembly Area */
+    #board {
+      width: 460px;
+      height: 460px;
+      background-color: var(--card);
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      position: relative;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      transition: background-color 0.2s ease, border-color 0.2s ease;
+      overflow: hidden; /* Prevents anything from overflowing canvas */
+    }
+
+    #board.drag-over {
+      background-color: var(--highlight);
+      border-color: var(--accent);
+    }
+
+    /* Selection Tray */
+    #tray {
+      width: 320px;
+      min-height: 460px;
+      background-color: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-content: flex-start;
+      justify-content: center;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Draggable Image Pieces */
+    .piece {
+      width: 120px;
+      height: auto;
+      max-height: 120px;
+      object-fit: contain;
+      cursor: grab;
+      touch-action: none; /* Disables default touch scrolling while dragging */
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+      will-change: transform;
+      z-index: 10;
+    }
+
+    .piece.dragging {
+      cursor: grabbing;
+      z-index: 1000 !important;
+      filter: drop-shadow(0 10px 15px rgba(0,0,0,0.25));
+    }
+
+    .reset-btn {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background-color: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+    }
+
+    .reset-btn:hover {
+      background-color: #1d4ed8;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="instructions">
+    <h3>Science Skills Assembly Activity</h3>
+    <p>Drag the pieces into the target board to fit them together.</p>
+  </div>
+
+  <div class="app-container">
+    <div id="board"></div>
+    <div id="tray"></div>
+  </div>
+
+  <button class="reset-btn" onclick="resetBoard()">Reset Activity</button>
+
+  <script>
+    // GitHub Image Assets
+    const imageSources = [
+      'https://github.com/Bioteacher-k12/Science-Skills-Puzzle-Assets/blob/main/A&D.png?raw=true',
+      'https://github.com/Bioteacher-k12/Science-Skills-Puzzle-Assets/blob/main/A&I.png?raw=true',
+      'https://github.com/Bioteacher-k12/Science-Skills-Puzzle-Assets/blob/main/D&M.png?raw=true',
+      'https://github.com/Bioteacher-k12/Science-Skills-Puzzle-Assets/blob/main/E&D.png?raw=true',
+      'https://github.com/Bioteacher-k12/Science-Skills-Puzzle-Assets/blob/main/EinA.png?raw=true',
+      'https://github.com/Bioteacher-k12/Science-Skills-Puzzle-Assets/blob/main/M&C.png?raw=true',
+      'https://github.com/Bioteacher-k12/Science-Skills-Puzzle-Assets/blob/main/O&E.png?raw=true',
+      'https://github.com/Bioteacher-k12/Science-Skills-Puzzle-Assets/blob/main/P&C.png?raw=true'
+    ];
+
+    const tray = document.getElementById('tray');
+    const board = document.getElementById('board');
+
+    function init() {
+      tray.innerHTML = '';
+      board.innerHTML = '';
+
+      imageSources.forEach((src, idx) => {
+        const img = document.createElement('img');
+        img.src = src;
+        img.className = 'piece';
+        img.id = 'piece-' + idx;
+        
+        // Prevent default browser image drag behavior
+        img.ondragstart = () => false;
+
+        // Attach Pointer Event (works for Touch & Mouse)
+        img.addEventListener('pointerdown', onPointerDown);
+
+        tray.appendChild(img);
+      });
+    }
+
+    let activePiece = null;
+    let startX = 0, startY = 0;
+
+    function onPointerDown(e) {
+      activePiece = e.currentTarget;
+      activePiece.classList.add('dragging');
+      activePiece.setPointerCapture(e.pointerId);
+
+      startX = e.clientX;
+      startY = e.clientY;
+
+      activePiece.addEventListener('pointermove', onPointerMove);
+      activePiece.addEventListener('pointerup', onPointerUp);
+      activePiece.addEventListener('pointercancel', onPointerUp);
+    }
+
+    function onPointerMove(e) {
+      if (!activePiece) return;
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      // GPU accelerated movement
+      activePiece.style.transform = `translate3d(${dx}px, ${dy}px, 0) scale(1.08)`;
+
+      // Check if hovering over board for visual glow
+      const boardRect = board.getBoundingClientRect();
+      const isOverBoard = (
+        e.clientX >= boardRect.left &&
+        e.clientX <= boardRect.right &&
+        e.clientY >= boardRect.top &&
+        e.clientY <= boardRect.bottom
+      );
+
+      if (isOverBoard) {
+        board.classList.add('drag-over');
+      } else {
+        board.classList.remove('drag-over');
+      }
+    }
+
+    function onPointerUp(e) {
+      if (!activePiece) return;
+
+      activePiece.releasePointerCapture(e.pointerId);
+      activePiece.classList.remove('dragging');
+      board.classList.remove('drag-over');
+
+      // Clear inline transform
+      activePiece.style.transform = '';
+
+      const boardRect = board.getBoundingClientRect();
+      const clientX = e.clientX;
+      const clientY = e.clientY;
+
+      // Check if dropped INSIDE board
+      const isDroppedInBoard = (
+        clientX >= boardRect.left &&
+        clientX <= boardRect.right &&
+        clientY >= boardRect.top &&
+        clientY <= boardRect.bottom
+      );
+
+      if (isDroppedInBoard) {
+        // Calculate drop relative to board
+        const pieceRect = activePiece.getBoundingClientRect();
+        let relX = clientX - boardRect.left - (pieceRect.width / 2);
+        let relY = clientY - boardRect.top - (pieceRect.height / 2);
+
+        // Keep inside board boundaries
+        const maxX = boardRect.width - pieceRect.width;
+        const maxY = boardRect.height - pieceRect.height;
+        relX = Math.max(0, Math.min(relX, maxX));
+        relY = Math.max(0, Math.min(relY, maxY));
+
+        // Place on board
+        board.appendChild(activePiece);
+        activePiece.style.position = 'absolute';
+        activePiece.style.left = relX + 'px';
+        activePiece.style.top = relY + 'px';
+      } else {
+        // FAIL-SAFE: Return piece safely to tray
+        returnToTray(activePiece);
+      }
+
+      // Cleanup listeners
+      activePiece.removeEventListener('pointermove', onPointerMove);
+      activePiece.removeEventListener('pointerup', onPointerUp);
+      activePiece.removeEventListener('pointercancel', onPointerUp);
+      activePiece = null;
+    }
+
+    function returnToTray(piece) {
+      tray.appendChild(piece);
+      piece.style.position = 'relative';
+      piece.style.left = 'auto';
+      piece.style.top = 'auto';
+    }
+
+    function resetBoard() {
+      const pieces = document.querySelectorAll('.piece');
+      pieces.forEach(piece => returnToTray(piece));
+    }
+
+    // Initialize layout
+    init();
+  </script>
+</body>
+</html>
